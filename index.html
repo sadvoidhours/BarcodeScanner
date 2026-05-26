@@ -34,10 +34,28 @@
           <button id="startBtn" class="primary" type="button">Start scanner</button>
           <button id="stopBtn" class="ghost" type="button" disabled>Stop</button>
           <button id="torchBtn" class="ghost" type="button" disabled>Toggle torch</button>
+          <button id="ocrBtn" class="ghost" type="button">Capture text (OCR)</button>
         </div>
 
         <div class="status" id="status" role="status" aria-live="polite">
           Camera is idle.
+        </div>
+      </section>
+
+      <section class="details-card">
+        <div class="details-header">
+          <h2>OCR details</h2>
+          <p>OCR will place detected text into the fields below.</p>
+        </div>
+        <div class="details-grid">
+          <label class="detail-field" for="windowsOs">
+            <span>Windows OS</span>
+            <input id="windowsOs" type="text" placeholder="Windows 11 Pro" readonly />
+          </label>
+          <label class="detail-field" for="productKey">
+            <span>Product key</span>
+            <input id="productKey" type="text" placeholder="XXXXX-XXXXX-XXXXX-XXXXX-XXXXX" readonly />
+          </label>
         </div>
       </section>
 
@@ -47,6 +65,7 @@
           <div class="results-actions">
             <button id="exportBtn" class="ghost" type="button">Export CSV</button>
             <button id="clearBtn" class="ghost" type="button">Clear</button>
+            <button id="clearDbBtn" class="ghost" type="button">Clear database</button>
           </div>
         </div>
         <div class="stats">
@@ -75,6 +94,7 @@
       </footer>
     </div>
 
+    <script src="https://unpkg.com/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

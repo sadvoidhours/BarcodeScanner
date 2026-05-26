@@ -76,6 +76,20 @@ app.get("/api/export", async (req, res) => {
   }
 });
 
+app.post("/api/clear", async (req, res) => {
+  try {
+    const mongoClient = await getClient();
+    const collection = mongoClient.db(DB_NAME).collection(COLLECTION_NAME);
+    const result = await collection.deleteMany({});
+
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.status(200).json({ deletedCount: result.deletedCount || 0 });
+  } catch (error) {
+    res.status(500).send(`Clear failed: ${error.message}`);
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });

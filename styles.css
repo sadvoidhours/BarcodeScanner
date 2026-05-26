@@ -66,7 +66,8 @@ body::before {
 }
 
 .scanner-card,
-.results-card {
+.results-card,
+.details-card {
   background: #fff;
   border-radius: 24px;
   padding: 20px;
@@ -189,6 +190,46 @@ button:disabled {
   margin-top: 16px;
   font-size: 14px;
   color: rgba(26, 26, 26, 0.7);
+}
+
+.details-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.details-header p {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(26, 26, 26, 0.55);
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.detail-field {
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(26, 26, 26, 0.6);
+}
+
+.detail-field input {
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(26, 26, 26, 0.15);
+  font: inherit;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  background: rgba(26, 26, 26, 0.03);
 }
 
 .results-header {

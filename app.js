@@ -5,12 +5,16 @@ const stopBtn = document.getElementById("stopBtn");
 const torchBtn = document.getElementById("torchBtn");
 const exportBtn = document.getElementById("exportBtn");
 const clearBtn = document.getElementById("clearBtn");
+const clearDbBtn = document.getElementById("clearDbBtn");
+const ocrBtn = document.getElementById("ocrBtn");
 const statusEl = document.getElementById("status");
 const resultsEl = document.getElementById("results");
 const emptyStateEl = document.getElementById("emptyState");
 const totalCountEl = document.getElementById("totalCount");
 const uniqueCountEl = document.getElementById("uniqueCount");
 const lastScanEl = document.getElementById("lastScan");
+const windowsOsInput = document.getElementById("windowsOs");
+const productKeyInput = document.getElementById("productKey");
 
 let stream = null;
 let animationId = null;
@@ -21,6 +25,7 @@ let lastDetectedAt = 0;
 let lastDetectAttemptAt = 0;
 let totalScans = 0;
 const scanCounts = new Map();
+let ocrBusy = false;
 
 const DETECTION_INTERVAL_MS = 250;
 const SCAN_COOLDOWN_MS = 1100;
@@ -187,6 +192,123 @@ function drawOverlay() {
   ctx.strokeRect(width * 0.12, height * 0.18, width * 0.76, height * 0.64);
 }
 
+function captureFrame() {
+  const width = video.videoWidth;
+  const height = video.videoHeight;
+  if (!width || !height) return null;
+
+  const maxWidth = 900;
+  const scale = Math.min(1, maxWidth / width);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(width * scale);
+  canvas.height = Math.round(height * scale);
+
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  return canvas;
+}
+
+function pickBestOcrLine(text) {
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  let best = "";
+  let bestScore = 0;
+
+  lines.forEach((line) => {
+    const cleaned = line.replace(/[^A-Za-z0-9_-]/g, "");
+    const score = cleaned.length;
+    if (score > bestScore) {
+      best = cleaned || line;
+      bestScore = score;
+    }
+  });
+
+  if (bestScore < 4) {
+    return "";
+  }
+
+  return best;
+}
+
+function extractProductKey(text) {
+  const normalized = text.replace(/[^A-Za-z0-9-]/g, "").toUpperCase();
+  const match = normalized.match(/[A-Z0-9]{5}(?:-[A-Z0-9]{5}){4}/);
+  return match ? match[0] : "";
+}
+
+function extractWindowsOs(text) {
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const windowsLine = lines.find((line) => /windows\s*(\d+|xp|vista|server)?/i.test(line));
+  if (windowsLine) {
+    return windowsLine.replace(/\s{2,}/g, " ");
+  }
+
+  return "";
+}
+
+function updateOcrFields({ windowsOs, productKey }) {
+  if (windowsOs) {
+    windowsOsInput.value = windowsOs;
+  }
+  if (productKey) {
+    productKeyInput.value = productKey;
+  }
+}
+
+async function runOcr() {
+  if (ocrBusy) return;
+  if (!window.Tesseract) {
+    setStatus("OCR engine failed to load. Check your network and refresh.");
+    return;
+  }
+
+  const frame = captureFrame();
+  if (!frame) {
+    setStatus("Camera not ready. Start the scanner first.");
+    return;
+  }
+
+  try {
+    ocrBusy = true;
+    ocrBtn.disabled = true;
+    setStatus("Running OCR... hold steady.");
+
+    const result = await window.Tesseract.recognize(frame, "eng");
+    const text = result?.data?.text || "";
+    const productKey = extractProductKey(text);
+    const windowsOs = extractWindowsOs(text);
+    const bestLine = pickBestOcrLine(text);
+
+    if (!productKey && !windowsOs && !bestLine) {
+      setStatus("No readable text detected. Try better lighting or zoom.");
+      return;
+    }
+
+    updateOcrFields({ windowsOs, productKey });
+
+    const displayValue = productKey || windowsOs || bestLine;
+    const tag = productKey ? "OCR: Product key" : windowsOs ? "OCR: Windows OS" : "OCR";
+
+    lastScan = displayValue;
+    totalScans += 1;
+    addResult(displayValue, tag);
+    setStatus(`Detected: ${displayValue}`);
+    updateStats();
+  } catch (error) {
+    setStatus("OCR failed. Try again with clearer focus.");
+  } finally {
+    ocrBusy = false;
+    ocrBtn.disabled = false;
+  }
+}
+
 async function scanLoop() {
   if (!video.videoWidth || !video.videoHeight || !detector) {
     animationId = requestAnimationFrame(scanLoop);
@@ -232,6 +354,7 @@ async function scanLoop() {
 startBtn.addEventListener("click", startCamera);
 stopBtn.addEventListener("click", stopCamera);
 torchBtn.addEventListener("click", toggleTorch);
+ocrBtn.addEventListener("click", runOcr);
 clearBtn.addEventListener("click", () => {
   resultsEl.innerHTML = "";
   lastScan = "";
@@ -239,6 +362,34 @@ clearBtn.addEventListener("click", () => {
   scanCounts.clear();
   setStatus("Results cleared. Ready to scan.");
   updateStats();
+});
+
+clearDbBtn.addEventListener("click", async () => {
+  const confirmed = window.confirm(
+    "Clear the entire database collection? This cannot be undone."
+  );
+  if (!confirmed) return;
+
+  clearDbBtn.disabled = true;
+  setStatus("Clearing database...");
+
+  try {
+    const response = await fetch("/api/clear", { method: "POST" });
+    if (!response.ok) {
+      throw new Error("Clear failed");
+    }
+    const payload = await response.json();
+    resultsEl.innerHTML = "";
+    lastScan = "";
+    totalScans = 0;
+    scanCounts.clear();
+    updateStats();
+    setStatus(`Database cleared (${payload.deletedCount || 0} items).`);
+  } catch (error) {
+    setStatus("Clear failed. Ensure the API is deployed and try again.");
+  } finally {
+    clearDbBtn.disabled = false;
+  }
 });
 
 exportBtn.addEventListener("click", async () => {
