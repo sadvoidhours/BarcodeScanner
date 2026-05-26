@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Inventory Scanner
 
 Mobile-friendly barcode scanner with CSV export from MongoDB, ready for Vercel.
@@ -23,3 +24,7 @@ Mobile-friendly barcode scanner with CSV export from MongoDB, ready for Vercel.
 
 - Default export fields are controlled by `CSV_FIELDS`.
 - You can override fields with `?fields=ProductKey,Name` on `/api/export`.
+=======
+# BarcodeScanner
+
+>>>>>>> 09446b89d1fbeceeba1bd36eb58af001e68a6dbf
