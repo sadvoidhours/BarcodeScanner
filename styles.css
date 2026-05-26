@@ -156,6 +156,22 @@ body.is-scanning .hint {
   margin-top: 18px;
 }
 
+.scan-size {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: 120px 1fr 60px;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(26, 26, 26, 0.6);
+}
+
+.scan-size input[type="range"] {
+  width: 100%;
+}
+
 button {
   font: inherit;
   padding: 12px 14px;
@@ -230,6 +246,18 @@ button:disabled {
   text-transform: none;
   letter-spacing: 0.02em;
   background: rgba(26, 26, 26, 0.03);
+}
+
+.detail-field textarea {
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(26, 26, 26, 0.15);
+  font: inherit;
+  text-transform: none;
+  letter-spacing: 0.1em;
+  background: rgba(26, 26, 26, 0.03);
+  resize: none;
+  min-height: 88px;
 }
 
 .results-header {

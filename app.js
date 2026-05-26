@@ -7,6 +7,8 @@ const exportBtn = document.getElementById("exportBtn");
 const clearBtn = document.getElementById("clearBtn");
 const clearDbBtn = document.getElementById("clearDbBtn");
 const ocrBtn = document.getElementById("ocrBtn");
+const scanSizeInput = document.getElementById("scanSize");
+const scanSizeValue = document.getElementById("scanSizeValue");
 const statusEl = document.getElementById("status");
 const resultsEl = document.getElementById("results");
 const emptyStateEl = document.getElementById("emptyState");
@@ -26,6 +28,7 @@ let lastDetectAttemptAt = 0;
 let totalScans = 0;
 const scanCounts = new Map();
 let ocrBusy = false;
+let scanScale = 0.76;
 
 const DETECTION_INTERVAL_MS = 250;
 const SCAN_COOLDOWN_MS = 1100;
@@ -187,9 +190,45 @@ function drawOverlay() {
   const height = overlay.height;
   ctx.clearRect(0, 0, width, height);
 
+  const region = getScanRegion(width, height);
   ctx.strokeStyle = "rgba(255, 179, 71, 0.9)";
   ctx.lineWidth = 4;
-  ctx.strokeRect(width * 0.12, height * 0.18, width * 0.76, height * 0.64);
+  ctx.strokeRect(region.x, region.y, region.width, region.height);
+}
+
+function getScanRegion(width, height) {
+  const normalized = Math.min(Math.max(scanScale, 0.55), 0.9);
+  const frameWidth = width * normalized;
+  const frameHeight = frameWidth * 0.84;
+  const x = (width - frameWidth) / 2;
+  const y = (height - frameHeight) / 2;
+  return { x, y, width: frameWidth, height: frameHeight };
+}
+
+function captureScanRegion() {
+  const width = video.videoWidth;
+  const height = video.videoHeight;
+  if (!width || !height) return null;
+
+  const region = getScanRegion(width, height);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(region.width);
+  canvas.height = Math.round(region.height);
+
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(
+    video,
+    region.x,
+    region.y,
+    region.width,
+    region.height,
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
+
+  return canvas;
 }
 
 function captureFrame() {
@@ -197,14 +236,25 @@ function captureFrame() {
   const height = video.videoHeight;
   if (!width || !height) return null;
 
+  const region = getScanRegion(width, height);
   const maxWidth = 900;
-  const scale = Math.min(1, maxWidth / width);
+  const scale = Math.min(1, maxWidth / region.width);
   const canvas = document.createElement("canvas");
-  canvas.width = Math.round(width * scale);
-  canvas.height = Math.round(height * scale);
+  canvas.width = Math.round(region.width * scale);
+  canvas.height = Math.round(region.height * scale);
 
   const ctx = canvas.getContext("2d");
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  ctx.drawImage(
+    video,
+    region.x,
+    region.y,
+    region.width,
+    region.height,
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
   return canvas;
 }
 
@@ -234,9 +284,13 @@ function pickBestOcrLine(text) {
 }
 
 function extractProductKey(text) {
-  const normalized = text.replace(/[^A-Za-z0-9-]/g, "").toUpperCase();
-  const match = normalized.match(/[A-Z0-9]{5}(?:-[A-Z0-9]{5}){4}/);
-  return match ? match[0] : "";
+  const normalized = text.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+  const match = normalized.match(/[A-Z0-9]{25}/);
+  if (!match) return "";
+
+  const key = match[0];
+  const groups = key.match(/.{1,5}/g) || [];
+  return groups.join("-");
 }
 
 function extractWindowsOs(text) {
@@ -258,7 +312,15 @@ function updateOcrFields({ windowsOs, productKey }) {
     windowsOsInput.value = windowsOs;
   }
   if (productKey) {
-    productKeyInput.value = productKey;
+    const groups = productKey.split("-");
+    const formatted = [
+      `${groups[0] || ""}-${groups[1] || ""}`.trim(),
+      `${groups[2] || ""}-${groups[3] || ""}`.trim(),
+      `${groups[4] || ""}`.trim()
+    ]
+      .filter(Boolean)
+      .join("\n");
+    productKeyInput.value = formatted;
   }
 }
 
@@ -330,7 +392,13 @@ async function scanLoop() {
   drawOverlay();
 
   try {
-    const barcodes = await detector.detect(video);
+    const scanFrame = captureScanRegion();
+    if (!scanFrame) {
+      animationId = requestAnimationFrame(scanLoop);
+      return;
+    }
+
+    const barcodes = await detector.detect(scanFrame);
     if (barcodes.length > 0) {
       const { rawValue, format } = barcodes[0];
       if (rawValue && now - lastDetectedAt > SCAN_COOLDOWN_MS) {
@@ -355,6 +423,14 @@ startBtn.addEventListener("click", startCamera);
 stopBtn.addEventListener("click", stopCamera);
 torchBtn.addEventListener("click", toggleTorch);
 ocrBtn.addEventListener("click", runOcr);
+scanSizeInput.addEventListener("input", (event) => {
+  const value = Number(event.target.value || 76);
+  scanScale = value / 100;
+  scanSizeValue.textContent = `${value}%`;
+  if (video.videoWidth && video.videoHeight) {
+    drawOverlay();
+  }
+});
 clearBtn.addEventListener("click", () => {
   resultsEl.innerHTML = "";
   lastScan = "";

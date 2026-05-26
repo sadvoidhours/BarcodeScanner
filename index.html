@@ -37,6 +37,12 @@
           <button id="ocrBtn" class="ghost" type="button">Capture text (OCR)</button>
         </div>
 
+        <div class="scan-size">
+          <label for="scanSize">Scan frame size</label>
+          <input id="scanSize" type="range" min="55" max="90" value="76" />
+          <span id="scanSizeValue">76%</span>
+        </div>
+
         <div class="status" id="status" role="status" aria-live="polite">
           Camera is idle.
         </div>
@@ -54,7 +60,12 @@
           </label>
           <label class="detail-field" for="productKey">
             <span>Product key</span>
-            <input id="productKey" type="text" placeholder="XXXXX-XXXXX-XXXXX-XXXXX-XXXXX" readonly />
+            <textarea
+              id="productKey"
+              rows="3"
+              placeholder="XXXXX-XXXXX&#10;XXXXX-XXXXX&#10;XXXXX"
+              readonly
+            ></textarea>
           </label>
         </div>
       </section>
